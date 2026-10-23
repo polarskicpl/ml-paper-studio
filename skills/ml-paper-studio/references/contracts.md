@@ -12,6 +12,7 @@ venue/template-bundles/<id>/             下载原件与安全提取目录
 venue/template-manifest.json             可选的当前模板索引
 evidence/inventory.md                    实际实现和实验清单
 evidence/evidence-map.json               主张与本地证据绑定
+evidence/draft-declaration.json          并行模式的内部声明与待填账本（按需）
 evidence/terms-and-symbols.md
 outline/outline.zh.md
 literature/sources.json
@@ -87,6 +88,42 @@ paper/main.tex, sections/, figures/, references.bib, paper.pdf
 - 主张 `claim_type` 为 empirical/implementation/theory/positioning；`status` 为 supported/bounded/unresolved/contradicted。`bounded` 说明具体限制；没有证据的主张不能靠该标签放行。
 - 外部论文作为背景或理论支持不能冒充本研究结果。经验性结果至少要有相符条件下的实际结果记录；`partial` 仅能支持明确写出的部分范围。
 - `use_in_manuscript:false` 表示本轮不使用的候选主张，不要求为了凑齐它们去补实验。
+
+## 并行写作的可选接口
+
+按 [兼容模式](parallel-drafting.md) 启用，不改变原证据枚举或默认严格检查。完整工作区的状态可补：
+
+```json
+{"drafting": {"mode": "parallel", "declaration_path": "evidence/draft-declaration.json"}}
+```
+
+声明文件示例：
+
+```json
+{
+  "schema": "ml-paper-studio.draft-declaration/1",
+  "authorization": {
+    "user_message_ref": "实际用户消息引用",
+    "quote": "实际授权原话",
+    "scope": "允许先写的具体范围；不代表批准结果或投稿"
+  },
+  "design_basis": ["按实际说明整理的算法、协议及内部实现差异"],
+  "pending": [{
+    "id": "R1", "claim_id": "C-RESULT-1",
+    "locations": ["manuscript/manuscript.zh.md 的实际结果位置"],
+    "required_evidence": "实际需要补齐并核验的结果及比较条件",
+    "status": "pending", "placeholder": "[[RESULT:R1]]"
+  }]
+}
+```
+
+此示例不是授权或结果。`authorization` 只记录实际消息，脚本不能鉴别消息身份；`design_basis` 是可选说明，不是实测证明。`pending` 中每条都有唯一 id、实际 claim_id、非空位置与待补依据、状态和占位；id 用字母数字开头及字母数字/下划线/短横线，占位必须是 `[[RESULT:<id>]]`。`locations` 为调用方定位说明，脚本不做语义认证。
+
+状态为 pending/resolved/dropped。pending 只对应仍在稿件范围内的 unresolved 主张，占位保留在中文及已生成的对应英文中；使用中的每条 unresolved 主张须有登记。contradicted 不能靠声明放行。resolved 仍须对应有实际支持的 supported/bounded 主张；dropped 须移出本轮主张范围。真实证据到达前不改状态，不删除占位冒充问题解决。
+
+例如 `paper_workspace.py check --stage 3 --purpose draft`，仅限阶段 3、4、5，使用独立报告 schema `ml-paper-studio.draft-check/1`，状态为 draft_consistent/needs_review，`submission_readiness` 固定 not_assessed。它检查声明、主张关联、文本占位与当前字节绑定；英文仍核对翻译保真记录，内部 PDF 仍核对构建/PDF/输入绑定。未做的审稿、语义支持、作者身份、视觉及投稿检查不升级为通过；不会自动确认框架、标阶段 complete 或修改证据。
+
+未指定 `--purpose` 或指定 strict 时仍用原严格行为；0–2 阶段不接受 draft。正常中文草稿可带登记缺口交接，但原严格检查中的 open_core_claim 等问题继续存在。一个阶段返回 consistent 也不是完整投稿验收；最终提交需相关内容、引用、翻译、PDF 及会议要求分别通过实际核对。
 
 ## 阶段 2 文献证据
 
