@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 import hashlib
 import json
 from pathlib import Path
+import re
 import sys
 import time
 
@@ -470,8 +471,8 @@ class Checker:
             if item.get('status')!='pass' or not item.get('evidence'):
                 self.add('error','translation_not_checked','Translation check lacks actual review: '+key)
 
-    def latex_pdf(self):
-        self.venue()
+    def build_binding(self):
+        """Check the actual PDF/input binding without asserting venue readiness."""
         obj = self.obj('build','ml-paper-studio.build/1')
         if obj.get('status')!='success' or not all(obj.get(k) for k in ['engine','command_or_tool','built_at']):
             self.add('error','build_not_successful','Actual successful compilation is not recorded')
@@ -498,6 +499,11 @@ class Checker:
                     self.add('error','stale_pdf_inputs','Source/template/asset inputs changed, or a current input is missing from the build binding')
             except (OSError,ValueError,KeyError) as exc:
                 self.add('error','build_binding',str(exc))
+        return obj
+
+    def latex_pdf(self):
+        self.venue()
+        obj = self.build_binding()
         check = self.obj('pdf_check','ml-paper-studio.pdf-check/1')
         if check.get('pdf_sha256')!=obj.get('pdf_sha256'):
             self.add('error','stale_pdf_check','Visual/submission review is bound to another PDF')
@@ -505,6 +511,106 @@ class Checker:
             item = check.get('checks',{}).get(key,{})
             if not (item.get('status')=='pass' and item.get('evidence') or key=='anonymity' and item.get('status')=='not_applicable' and isinstance(item.get('reason'),str) and item['reason'].strip()):
                 self.add('error','pdf_check_not_completed','PDF check was not actually completed: '+key)
+
+    def run_draft(self, stage):
+        """An explicitly authorized internal handoff; never relax the strict checks."""
+        if stage not in [3,4,5]:
+            raise ValueError('--purpose draft is supported only for stages 3, 4 and 5')
+        drafting=object_value(self.state.get('drafting',{}),'drafting')
+        if drafting.get('mode')!='parallel' or not isinstance(drafting.get('declaration_path'),str) or not drafting['declaration_path'].strip():
+            raise ValueError('Draft checks require drafting.mode=parallel and declaration_path')
+        declaration_path=inside(self.workspace,drafting['declaration_path'])
+        declaration=object_value(json.loads(declaration_path.read_text(encoding='utf-8')),'draft declaration')
+        if declaration.get('schema')!='ml-paper-studio.draft-declaration/1':
+            raise ValueError('Unsupported draft declaration schema')
+        authorization=object_value(declaration.get('authorization',{}),'draft authorization')
+        if any(not isinstance(authorization.get(key),str) or not authorization[key].strip() for key in ['user_message_ref','quote','scope']):
+            raise ValueError('Draft authorization requires an actual message reference, quote and scope')
+        pending=list_value(declaration.get('pending'),'draft pending',objects=True)
+        self.inspected['draft_declaration']=str(declaration_path)
+        evidence=self.evidence()
+        claims={row.get('id'):row for row in evidence.get('claims',[])}
+        tentative=[row for row in evidence.get('claims',[]) if row.get('use_in_manuscript',True) and row.get('status')=='unresolved' and row.get('source_ids')]
+        if tentative:
+            sources=self.obj('sources','ml-paper-studio.sources/1')
+            source_ids={row.get('id') for row in sources.get('entries',[])}
+            for claim in tentative:
+                for source_id in claim.get('source_ids',[]):
+                    if source_id not in source_ids:
+                        self.add('error','missing_source_id','Draft claim points to a missing source: '+str(claim.get('id'))+'/'+source_id)
+        texts={}
+        for role in ['chinese']+(['english'] if stage==4 else []):
+            path=self.file(role)
+            if path:
+                texts[role]=path.read_text(encoding='utf-8')
+        if stage==5:
+            path=self.file('english',optional=True)
+            if path:
+                texts['english']=path.read_text(encoding='utf-8')
+        ids=set()
+        pending_claims=set()
+        active_tokens=set()
+        for row in pending:
+            if any(not isinstance(row.get(key),str) or not row[key].strip() for key in ['id','claim_id','status','placeholder']):
+                raise ValueError('Each draft pending entry requires id, claim_id, status and placeholder strings')
+            locations=list_value(row.get('locations'),'draft pending.locations',strings=True)
+            if not locations or any(not item.strip() for item in locations) or not isinstance(row.get('required_evidence'),str) or not row['required_evidence'].strip():
+                raise ValueError('Each draft pending entry requires nonempty locations and required_evidence')
+            if not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9_-]*',row['id']) or row['placeholder']!='[[RESULT:'+row['id']+']]':
+                raise ValueError('Draft placeholders must be [[RESULT:<id>]] with a simple alphanumeric identifier')
+            if row['id'] in ids:
+                self.add('error','duplicate_draft_id','Duplicate draft ledger identifier: '+row['id'])
+            ids.add(row['id'])
+            if row['status'] not in ['pending','resolved','dropped']:
+                raise ValueError('Draft pending status must be pending, resolved or dropped')
+            claim=claims.get(row['claim_id'])
+            if not claim:
+                self.add('error','unknown_draft_claim','Draft ledger points to a missing claim: '+row['claim_id'])
+                continue
+            if row['status']=='pending':
+                if row['claim_id'] in pending_claims:
+                    self.add('error','duplicate_pending_claim','Use one pending entry per claim: '+row['claim_id'])
+                pending_claims.add(row['claim_id'])
+                active_tokens.add(row['placeholder'])
+                if claim.get('status')!='unresolved' or not claim.get('use_in_manuscript',True):
+                    self.add('error','pending_claim_status','Pending entries must point to an in-scope unresolved claim: '+row['claim_id'])
+                for role,text in texts.items():
+                    if row['placeholder'] not in text:
+                        self.add('error','missing_draft_placeholder','Pending placeholder is missing from '+role+': '+row['placeholder'])
+            elif row['status']=='resolved' and claim.get('status') not in ['supported','bounded']:
+                self.add('error','unresolved_ledger_resolution','Resolved entry lacks a supported/bounded claim: '+row['claim_id'])
+            elif row['status']=='dropped' and claim.get('use_in_manuscript',True):
+                self.add('error','dropped_claim_in_scope','Dropped claim remains in manuscript scope: '+row['claim_id'])
+        for claim in evidence.get('claims',[]):
+            if not claim.get('use_in_manuscript',True):
+                continue
+            if claim.get('status')=='contradicted':
+                self.add('error','draft_contradicted_claim','A contradicted claim cannot be assumed in a draft: '+str(claim.get('id')))
+            elif claim.get('status')=='unresolved' and claim.get('id') not in pending_claims:
+                self.add('error','unregistered_draft_claim','In-scope unresolved claim lacks a pending entry: '+str(claim.get('id')))
+        for role,text in texts.items():
+            for token in set(re.findall(r'\[\[RESULT:[A-Za-z0-9_-]+\]\]',text))-active_tokens:
+                self.add('error','orphan_draft_placeholder','Unregistered, resolved or dropped placeholder remains in '+role+': '+token)
+        if stage==4:
+            self.english()
+        elif stage==5:
+            self.build_binding()
+        errors=sum(item['severity']=='error' for item in self.findings)
+        return {'schema':'ml-paper-studio.draft-check/1','stage':STAGES[stage],
+            'purpose':'draft','status':'needs_review' if errors else 'draft_consistent',
+            'errors':errors,'findings':self.findings,'inspected_artifacts':self.inspected,
+            'checked_at':now(),'submission_readiness':'not_assessed',
+            'drafting':{'mode':'parallel','scope':'internal_discussion_only',
+                'authorization_scope':authorization['scope'],'authorization_authenticated':False,
+                'declaration_path':drafting['declaration_path'],'pending':pending},
+            'scope':'declared_internal_draft_structure_and_current_byte_bindings_only',
+            'not_assessed':['scientific_validity','semantic_claim_support','author_message_authenticity',
+                'review_completion','venue_compliance']+(['pdf_visual_and_submission_review'] if stage==5 else []),
+            'limitations':['Authorization and ledger locations are caller-reported; this tool does not authenticate or semantically verify them.',
+                'Placeholders are checked in manuscript text, not extracted from the rendered PDF. Internal draft prose must not be represented as observed findings.',
+                'A clean draft check does not approve a framework, finish a stage, validate scientific results or permit submission.',
+                'Build execution is caller-recorded; byte bindings and a PDF header cannot prove actual compilation or rendered PDF quality.',
+                'Default hashing skips sources larger than 64 MiB with a warning. Build bindings cover paper/ except known generated files and do not discover external dependencies.']}
 
     def run(self, stage):
         [self.venue, lambda:(self.evidence(),self.file('outline')),self.literature,self.chinese,self.english,self.latex_pdf][stage]()
@@ -524,6 +630,7 @@ def main():
         if name=='check':
             command.add_argument('--stage',required=True,type=int,choices=range(6))
             command.add_argument('--hash-large',action='store_true')
+            command.add_argument('--purpose',choices=['strict','draft'],default='strict')
         if name=='confirm-outline':
             command.add_argument('--user-message-ref',required=True)
             command.add_argument('--quote',required=True)
@@ -551,7 +658,8 @@ def main():
         print(json.dumps(state,ensure_ascii=False,indent=2))
         return 0
     if args.command=='check':
-        report = Checker(workspace,state,args.hash_large).run(args.stage)
+        checker=Checker(workspace,state,args.hash_large)
+        report = checker.run_draft(args.stage) if args.purpose=='draft' else checker.run(args.stage)
         print(json.dumps(report,ensure_ascii=False,indent=2))
         return 1 if report['errors'] else 0
     if args.command=='snapshot-inputs':
