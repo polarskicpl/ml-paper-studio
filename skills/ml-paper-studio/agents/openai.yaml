@@ -1,0 +1,4 @@
+interface:
+  display_name: "ML 论文写作工作室"
+  short_description: "从投稿要求与真实研究证据，完成中文框架、文献定位、自审和英文论文交付"
+  default_prompt: "使用 $ml-paper-studio，按照我的研究代码和结果，建立可追溯的论文写作流程。"
