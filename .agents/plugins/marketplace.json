@@ -1,0 +1,12 @@
+{
+  "name": "polarskicpl-research-skills",
+  "interface": {"displayName": "ML Paper Studio"},
+  "plugins": [
+    {
+      "name": "ml-paper-studio",
+      "source": {"source": "local", "path": "./"},
+      "policy": {"installation": "AVAILABLE", "authentication": "ON_INSTALL"},
+      "category": "Productivity"
+    }
+  ]
+}
