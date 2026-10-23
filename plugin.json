@@ -1,0 +1,29 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "ml-paper-studio",
+  "version": "1.0.1",
+  "description": "Evidence-first ML/AI paper writing from Chinese outlines and literature research to academic English and LaTeX/PDF.",
+  "author": {"name": "polarskicpl", "url": "https://github.com/polarskicpl"},
+  "homepage": "https://github.com/polarskicpl/ml-paper-studio",
+  "repository": "https://github.com/polarskicpl/ml-paper-studio",
+  "license": "MIT",
+  "keywords": ["research", "academic-writing", "machine-learning", "latex", "chinese", "english"],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "ML Paper Studio",
+        "shortDescription": "Evidence-first paper writing",
+        "longDescription": "A six-stage ML/AI writing workflow: verify venue requirements, derive a Chinese outline from research evidence, investigate prior work, draft and review in Chinese, revise in academic English, and prepare LaTeX/PDF. Helpers check structure and byte bindings; they do not certify scientific validity, peer review, or submission compliance. Python and a suitable TeX/PDF environment are needed for the relevant operations.",
+        "developerName": "polarskicpl",
+        "category": "Productivity",
+        "capabilities": ["Read", "Write"],
+        "websiteURL": "https://github.com/polarskicpl/ml-paper-studio",
+        "supportURL": "https://github.com/polarskicpl/ml-paper-studio/issues",
+        "defaultPrompt": "Use ML Paper Studio to turn my research evidence into a Chinese outline and a defensible contribution statement.",
+        "brandColor": "#173C58",
+        "composerIcon": "./assets/icon.svg",
+        "logo": "./assets/icon.svg"
+      }
+    }
+  }
+}
