@@ -1,8 +1,8 @@
 # Validation / 验证范围
 
-Version 1.0.1 changes distribution metadata, bilingual documentation and the conditional desktop-tool route. The helper implementations are unchanged from the tested local 1.0.0 revision.
+Version 1.1.0 adds an explicit draft-purpose path while preserving the default strict checks. The original 63 workspace cases and 35 additional draft-mode boundary cases pass on the updated helper.
 
-1.0.1 调整分发清单、中英文说明及桌面工具的条件分支，辅助脚本实现沿用已检查的本地 1.0.0 版本。
+1.1.0 增加显式草稿用途分支，默认严格检查保留。更新脚本通过原 63 项工作区检查和新增 35 项草稿边界检查。
 
 ## Reproduce the workspace regression checks / 复跑工作区检查
 
@@ -10,11 +10,12 @@ From the repository root / 在仓库根目录运行：
 
 ```bash
 python3 tests/test_workspace.py
+python3 tests/test_draft_mode.py
 ```
 
-This uses only temporary, synthetic fixtures and Python's standard library. It checks 63 cases, including missing citation bindings, stale evidence/PDF inputs, confirmation versions, review metadata, malformed JSON, and path boundaries. It prints the results location. Synthetic pass fields and the dummy PDF header in these fixtures exercise interface validation; they are not real author approval, compilation, visual review or research results.
+These use only temporary, synthetic fixtures and Python's standard library, and print the results locations. The original 63 cases cover evidence, references and version boundaries; 35 draft cases additionally cover authorization records, pending claims/placeholders, translation and PDF bindings, and preservation of strict behavior. Synthetic pass fields and dummy PDF headers exercise interface validation; they are not real author approval, compilation, visual review or research results.
 
-测试仅使用临时合成样例和 Python 标准库，覆盖 63 个行为场景，并输出结果位置。样例中的通过字段和 PDF 文件头只用于检查接口，不能视为真实作者批准、编译、视觉检查或研究结论。
+测试仅使用临时合成样例与标准库，并打印结果位置。原 63 项覆盖证据和版本等边界；新增 35 项覆盖声明、待补主张/占位、翻译与 PDF 绑定以及严格分支保留。样例通过字段与 PDF 文件头只用于接口检查，不是真实作者批准、编译、视觉检查或研究结论。
 
 ## Other observed checks / 其他已做检查
 
