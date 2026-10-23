@@ -1,7 +1,7 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "ml-paper-studio",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "Evidence-first ML/AI paper writing from Chinese outlines and literature research to academic English and LaTeX/PDF.",
   "author": {"name": "polarskicpl", "url": "https://github.com/polarskicpl"},
   "homepage": "https://github.com/polarskicpl/ml-paper-studio",

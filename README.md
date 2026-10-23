@@ -4,7 +4,7 @@
 
 An evidence-based writing skill group for computer science and ML/AI papers. One entry point coordinates six stages, from research code and results to a Chinese argument structure, literature positioning, an English manuscript, and a checked LaTeX/PDF deliverable.
 
-**Version:** 1.0.1 · **Skill:** `$ml-paper-studio` · **License:** MIT
+**Version:** 1.1.0 · **Skill:** `$ml-paper-studio` · **License:** MIT
 
 ## What it does
 
@@ -22,6 +22,10 @@ For the full workflow, the default author decision point is **after Stage 2**: r
 Self-review defaults to **two rounds**—evidence/argument review, then simulated peer review—with at most a third round for specific remaining issues. Simulated review is not formal peer review. You can also request a single stage or section without restarting the whole workflow.
 
 Citation checks distinguish three questions: **Does the work exist? Was the relevant text retrieved? Does that text support this particular claim?** A working DOI alone does not answer all three. Literature positioning compares components, their coupling, constraints, and end-to-end evidence; “a complete system” alone is not a novelty argument.
+
+## Writing while experiments continue
+
+The optional [parallel drafting mode](skills/ml-paper-studio/references/parallel-drafting.md) develops the full paper structure from the author's declared design while remaining experiments run. Keep work-progress notes in an internal ledger; the manuscript can use mature academic prose without repeatedly saying that experiments are unfinished. Unknown empirical findings retain linked result placeholders rather than invented numbers or conclusions. An abstract deadline can be served by a result-neutral abstract, subject to the actual venue rules; an internal full-abstract draft may keep result slots. Draft-stage checks use `--purpose draft`; existing strict checks remain unchanged and submission readiness is not assessed by the draft check.
 
 ## Install
 
